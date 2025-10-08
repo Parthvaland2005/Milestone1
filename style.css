@@ -1,6 +1,3 @@
-/* ===================================================
-   GLOBAL STYLES
-=================================================== */
 * {
     box-sizing: border-box;
     margin: 0;
@@ -12,17 +9,11 @@ body {
     background: linear-gradient(to right, #dbe4ff, #eef2ff);
 }
 
-/* ===================================================
-   HEADINGS & PARAGRAPHS
-=================================================== */
 h1 { font-weight: 700; margin-bottom: 10px; }
 h3 { font-weight: 600; }
 p { font-size: 14px; line-height: 20px; margin-bottom: 15px; }
 a { color: #5e8bff; text-decoration: none; font-size: 14px; }
 
-/* ===================================================
-   BUTTONS
-=================================================== */
 button {
     border-radius: 20px;
     border: 1px solid #5e8bff;
@@ -37,9 +28,6 @@ button {
 button:hover { background-color: #476fdc; }
 button.ghost { background-color: transparent; border-color: #fff; }
 
-/* ===================================================
-   LOGIN/REGISTER CONTAINER
-=================================================== */
 .container {
     background: #fff;
     border-radius: 20px;
@@ -138,9 +126,6 @@ form {
 /* ERROR MESSAGES */
 .error { color:red; font-size:14px; margin-bottom:10px; }
 
-/* ===================================================
-   DASHBOARD STYLES
-=================================================== */
 nav {
     background: #476fdc;
     padding: 15px 30px;
