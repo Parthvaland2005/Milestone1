@@ -26,6 +26,7 @@ with app.app_context():
     db.create_all()
 
 
+
 @app.route('/')
 def home():
     return redirect('/login1')
@@ -37,20 +38,19 @@ def register():
         name = request.form['name']
         email = request.form['email']
         password = request.form['password']
-
+        
         
         existing_user = User.query.filter_by(email=email).first()
         if existing_user:
             return render_template('register1.html', error="Email already registered. Please log in.")
 
-    
+
         new_user = User(name=name, email=email, password=password)
         db.session.add(new_user)
         db.session.commit()
         return redirect('/login1')
 
     return render_template('register1.html')
-
 
 @app.route('/login1', methods=['GET', 'POST'])
 def login():
@@ -84,4 +84,3 @@ def logout():
 
 if __name__ == '__main__':
     app.run(debug=True)
-      
