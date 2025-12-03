@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crowd Count Dashboard - Simple</title>
+
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  <style>
+    :root{
+      --blue:#0b78ff;
+      --sidebar-bg:#ffffff;
+      --page-bg:#f4f6fb;
+    }
+
+    *{ box-sizing:border-box; }
+
+    body{
+      margin:0;
+      background:var(--page-bg);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    /* TOPBAR */
+    .topbar{
+      height:56px;
+      background:var(--blue);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 18px;
+      position:fixed;
+      top:0; left:0; right:0;
+      z-index:10;
+      box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    }
+    .topbar .title{
+      font-weight:600;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .topbar .user a{
+      background:#fff;
+      color:var(--blue);
+      padding:4px 10px;
+      border-radius:999px;
+      text-decoration:none;
+      font-size:13px;
+      margin-left:10px;
+    }
+
+    /* LAYOUT */
+    .layout{
+      display:flex;
+      height:calc(100vh - 56px);
+      margin-top:56px;
+    }
+
+    /* SIDEBAR */
+    .sidebar{
+      width:240px;
+      min-width:240px;
+      background:var(--sidebar-bg);
+      border-right:1px solid #e4e7f0;
+      padding:18px;
+    }
+    .nav-link{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:9px 12px;
+      margin-bottom:10px;
+      border-radius:10px;
+      border:1px solid #eef0f7;
+      text-decoration:none;
+      color:#333;
+      font-size:14px;
+      cursor:pointer;
+      transition:0.15s;
+      background:#fff;
+    }
+    .nav-link:hover{
+      background:#f4f6ff;
+    }
+    .nav-link.active{
+      background:#e3efff;
+      border-color:#c7dcff;
+      color:var(--blue);
+      font-weight:600;
+    }
+
+    /* MAIN */
+    .main{
+      flex:1;
+      padding:20px 24px;
+      overflow:auto;
+    }
+    .card{
+      background:#fff;
+      border-radius:14px;
+      padding:18px 20px;
+      margin-bottom:20px;
+      box-shadow:0 2px 6px rgba(15,23,42,0.05);
+    }
+    .stat-card{
+      border-radius:14px;
+      padding:20px;
+      background:linear-gradient(135deg,#667eea,#764ba2);
+      color:#fff;
+      text-align:center;
+    }
+    .stat-card h1{
+      margin:8px 0 0;
+      font-size:44px;
+      font-weight:700;
+    }
+    .stat-card p{
+      margin:0;
+      opacity:0.9;
+    }
+
+    .profile-item{
+      margin-bottom:8px;
+      font-size:15px;
+    }
+    .profile-item span{
+      font-weight:600;
+    }
+
+    .btn-danger{
+      display:inline-block;
+      margin-top:10px;
+      background:#dc3545;
+      color:#fff;
+      padding:8px 16px;
+      border-radius:999px;
+      text-decoration:none;
+      font-size:14px;
+    }
+
+    /* RESPONSIVE */
+    @media(max-width:768px){
+      .layout{
+        flex-direction:column;
+      }
+      .sidebar{
+        width:100%;
+        min-width:0;
+        display:flex;
+        gap:8px;
+        overflow-x:auto;
+      }
+      .nav-link{
+        white-space:nowrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+
+  <div class="topbar">
+    <div class="title">
+      <i class="bi bi-geo-fill"></i>
+      Crowd Count
+    </div>
+    <div class="user">
+      Welcome, <strong>{{ user.name }}</strong>
+      <a href="/logout">Logout</a>
+    </div>
+  </div>
+
+  <div class="layout">
+
+
+    <aside class="sidebar">
+      <a class="nav-link active" onclick="switchTab('home', this)">
+        <i class="bi bi-house-door-fill"></i> Home
+      </a>
+
+      <a class="nav-link" onclick="switchTab('profile', this)">
+        <i class="bi bi-person-circle"></i> Profile
+      </a>
+
+      <a class="nav-link" href="/logout">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </a>
+    </aside>
+
+
+    <main class="main">
+
+
+      <section id="home" class="tab" style="display:block;">
+        <div class="card">
+          <h3>Welcome, {{ user.name }}</h3>
+          <p>This simple dashboard shows current people count.</p>
+
+          <div class="stat-card" style="margin-top:16px;">
+            <p>People detected right now</p>
+          </div>
+        </div>
+      </section>
+
+
+      <section id="profile" class="tab" style="display:none;">
+        <div class="card">
+          <h3><i class="bi bi-person-circle"></i> Profile</h3>
+          <div class="profile-item">
+            <span>Name:</span> {{ user.name }}
+          </div>
+          <div class="profile-item">
+            <span>Email:</span> {{ user.email }}
+          </div>
+          <a href="/logout" class="btn-danger">Logout</a>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+
+    function switchTab(id, el){
+      document.querySelectorAll(".tab").forEach(t => t.style.display="none");
+      document.querySelectorAll(".nav-link").forEach(n => n.classList.remove("active"));
+
+      const tab = document.getElementById(id);
+      if(tab) tab.style.display = "block";
+      if(el) el.classList.add("active");
+    }
+
+
+    const GET_COUNTS = "/get_counts";
+
+    async function pollCounts(){
+      try{
+        const res = await fetch(GET_COUNTS);
+        if(!res.ok) return;
+        const data = await res.json();
+        const people = data.count || 0;
+
+        const homeCountEl = document.getElementById("homeCount");
+        if(homeCountEl) homeCountEl.textContent = people;
+      }catch(e){
+
+      }
+    }
+
+
+    pollCounts();
+    setInterval(pollCounts, 2000);
+  </script>
+
+</body>
+</html>
