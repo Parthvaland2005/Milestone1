@@ -1,0 +1,712 @@
+dashboard.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Crowd Count Dashboard - M3</title>
+
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+  
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --blue:#0b78ff;
+      --sidebar-bg: #ffffff;
+      --page-bg: #f4f6fb;
+      --alert-red: #dc3545;
+    }
+
+    html,body { height:100%; margin:0; }
+    body { background:var(--page-bg); font-family: Inter, system-ui, Arial; }
+
+    /* Topbar */
+    .topbar {
+      height:56px;
+      background:var(--blue);
+      color:#fff;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:0 18px;
+      box-shadow: 0 2px 6px rgba(11,120,255,0.12);
+      position:fixed;
+      left:0; right:0; top:0;
+      z-index: 20;
+    }
+    .topbar .title { font-weight:600; font-size:18px; display:flex; align-items:center; gap:8px; }
+    .topbar .user { font-size:14px; }
+
+    /* Layout wrapper (below topbar) */
+    .layout {
+      display:flex;
+      height: calc(100vh - 56px);
+      margin-top:56px; /* leave space for topbar */
+      width:100%;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width:260px;                 /* fixed width */
+      min-width:260px;
+      background:var(--sidebar-bg);
+      padding:18px;
+      border-right:1px solid #e9eef8;
+      box-shadow: 2px 0 6px rgba(12,34,66,0.03);
+      overflow:auto;
+    }
+    .sidebar .brand { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:18px; color:var(--blue); font-weight:700; font-size:18px; }
+    .nav-link {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      padding:10px 12px;
+      margin-bottom:8px;
+      border-radius:10px;
+      color:#333;
+      text-decoration:none;
+      background: #fff;
+      border:1px solid #f0f2f7;
+      transition: all 0.12s;
+    }
+    .nav-link i { font-size:18px; }
+    .nav-link:hover { background:#f8f9fa; border-color:#e0e5ee; text-decoration:none; }
+    .nav-link.active { background:#f1f8ff; border-color: #dceeff; color:var(--blue); font-weight:600; }
+
+
+    .main {
+      flex:1;
+      padding:20px 28px;
+      overflow:auto;
+
+    }
+
+    .card { 
+      border-radius:12px; 
+      border:0; 
+      box-shadow: 0 2px 8px rgba(12,34,66,0.05);
+      margin-bottom: 20px;
+      background:white;
+    }
+    .media-box { 
+      border-radius:10px; 
+      overflow:hidden; 
+      border: 3px solid #e6eefc; 
+      background:#000; 
+      display:block; 
+      max-width:100%;
+    }
+    .controls { margin-top:12px; }
+    .counts-list { margin-top:8px; padding-left:18px; color:#333; list-style: none; }
+    .counts-list li { margin-bottom: 5px; }
+
+    .alert-banner { 
+      display:none; 
+      margin-bottom:16px; 
+      border-radius:10px; 
+      padding:16px 20px; 
+      font-weight:600; 
+      color:#fff; 
+      background:var(--alert-red);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.8; }
+    }
+
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .stat-card h2 { font-size: 36px; font-weight: 700; margin: 10px 0; }
+    .stat-card p { font-size: 14px; opacity: 0.9; margin: 0; }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+      margin-bottom: 20px;
+    }
+
+
+    @media (max-width:900px){
+      .sidebar { display:none; position:static; width:100%; min-width:0; }
+      .layout { flex-direction:column; }
+      .main { padding:12px; }
+      .topbar .title { font-size:16px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="title"><i class="bi bi-geo-fill"></i> Crowd Count</div>
+    <div class="user">
+      Welcome, <strong>{{ user.name if user else 'User' }}</strong> &nbsp; 
+      <a href="/logout" class="btn btn-light btn-sm">Logout</a>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+      <div class="brand"><i class="bi bi-bar-chart-line-fill"></i> Welcome</div>
+
+      <a href="#" class="nav-link active" onclick="switchTab('home', this)">
+        <i class="bi bi-house-door-fill"></i> Home
+      </a>
+
+      <a href="#" class="nav-link" onclick="switchTab('live', this)">
+        <i class="bi bi-camera-video-fill"></i> Live Webcam
+      </a>
+
+      <a href="#" class="nav-link" onclick="switchTab('image', this)">
+        <i class="bi bi-image-fill"></i> Upload Image
+      </a>
+
+      <a href="#" class="nav-link" onclick="switchTab('video', this)">
+        <i class="bi bi-film"></i> Upload Video
+      </a>
+
+      <a href="#" class="nav-link" onclick="switchTab('profile', this)">
+        <i class="bi bi-person-circle"></i> Profile
+      </a>
+
+      {% if user and user.role == 'admin' %}
+      <a href="/admin/panel" class="nav-link" style="background:#dc2626; color:white;">
+        <i class="bi bi-shield-lock-fill"></i> Admin Panel
+      </a>
+      {% endif %}
+
+      <a href="/logout" class="nav-link">
+        <i class="bi bi-box-arrow-right"></i> Logout
+      </a>
+
+  
+
+
+    </aside>
+
+    
+    <main class="main">
+      <div id="alertBanner" class="alert-banner">
+        <i class="bi bi-exclamation-triangle-fill"></i>&nbsp; <strong>Alert!</strong> Crowd threshold exceeded! Current count: <span id="alertCount">0</span>
+      </div>
+
+  
+      <section id="home" class="tab" style="display:block;">
+        <div class="card p-4">
+          <h4><i class="bi bi-hand-thumbs-up"></i> Welcome to Crowd Monitoring Dashboard, {{ user.name if user else 'User' }}</h4>
+          <p>This dashboard provides real-time people counting, density visualization, and automated alerts.</p>
+          <div class="row mt-3">
+            <div class="col-md-4">
+              <div class="stat-card">
+                <p>Total People Right Now</p>
+                <h2 id="homeCount">0</h2>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+      </section>
+
+      
+      <section id="live" class="tab" style="display:none;">
+        <div class="card p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="bi bi-camera-video-fill"></i> Live Webcam Feed</h5>
+            <div>
+              <button id="startBtn" class="btn btn-success btn-sm"><i class="bi bi-play-fill"></i> Start</button>
+              <button id="stopBtn" class="btn btn-danger btn-sm"><i class="bi bi-stop-fill"></i> Stop</button>
+              <button id="captureBtn" class="btn btn-warning btn-sm"><i class="bi bi-camera"></i> Capture</button>
+            </div>
+          </div>
+
+          <div class="mt-3">
+        
+            <img id="liveFeed" class="media-box" src="{{ url_for('video_feed') }}" width="100%" height="500" alt="Live Feed">
+          </div>
+
+          <div class="mt-3 row">
+            <div class="col-md-6">
+              <div class="card p-3">
+                <h6><strong>Detected Objects (Live)</strong></h6>
+                <ul id="liveCounts" class="counts-list">
+                  <li>Waiting for detection...</li>
+                </ul>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <div class="card p-3 text-center">
+                <h6><strong>People Count</strong></h6>
+                <div id="livePeople" style="font-size:48px; font-weight:700; color:var(--blue);">0</div>
+                <p>Status: <span id="statusIndicator"><i class="bi bi-circle-fill" style="color:#dc3545"></i></span></p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="text-end mt-2">
+          <button class="btn btn-outline-primary" onclick="downloadReport('live')"><i class="bi bi-file-earmark-text"></i> Download Report</button>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-graph-up"></i> People Count Over Time</h6>
+          <div class="chart-container"><canvas id="lineChartLive"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-activity"></i> Crowd Density Visualization</h6>
+          <div class="chart-container"><canvas id="heatChartLive"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-columns-gap"></i> Zone Occupancy Distribution</h6>
+          <div class="chart-container" style="height:250px;"><canvas id="barChartLive"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <div class="card p-3" style="background:#f8f9fa;">
+            <h6><strong><i class="bi bi-bell-fill"></i> Alert System Status</strong></h6>
+            <p class="mb-0">Threshold: <strong id="thresholdLabel">50 people</strong></p>
+            <p class="mb-0">Current Status: <span id="alertStatusLive" style="font-weight:600; color:#28a745;"><i class="bi bi-check-circle-fill"></i> Normal</span></p>
+          </div>
+        </div>
+      </section>
+
+  
+      <section id="image" class="tab" style="display:none;">
+        <div class="card p-3">
+          <h5><i class="bi bi-image-fill"></i> Upload Image for Detection</h5>
+          <form id="imageForm" class="mt-3" enctype="multipart/form-data">
+            <input type="file" name="image" accept="image/*" required class="form-control mb-3">
+            <button class="btn btn-primary"><i class="bi bi-search"></i> Upload & Detect</button>
+          </form>
+
+          <div id="imageResult" class="mt-4"></div>
+        </div>
+
+        <div class="text-end mt-3">
+           <button class="btn btn-outline-primary" onclick="downloadReport('image')"><i class="bi bi-file-earmark-text"></i> Download Report</button>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-graph-up"></i> People Count Over Time (Image)</h6>
+          <div class="chart-container"><canvas id="lineChartImg"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-activity"></i> Crowd Density Visualization (Image)</h6>
+          <div class="chart-container"><canvas id="heatChartImg"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-columns-gap"></i> Zone Occupancy Distribution (Image)</h6>
+          <div class="chart-container" style="height:250px;"><canvas id="barChartImg"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <div class="card p-3" style="background:#f8f9fa;">
+            <h6><strong><i class="bi bi-bell-fill"></i> Alert System Status</strong></h6>
+            <p class="mb-0">Threshold: <strong id="thresholdLabelImg">50 people</strong></p>
+            <p class="mb-0">Current Status: <span id="alertStatusImg" style="font-weight:600; color:#28a745;"><i class="bi bi-check-circle-fill"></i> Normal</span></p>
+          </div>
+        </div>
+      </section>
+
+      
+      <section id="video" class="tab" style="display:none;">
+        <div class="card p-3">
+          <h5><i class="bi bi-film"></i> Upload Video for Detection</h5>
+          <p class="text-muted">Note: Processing may take some time depending on video length</p>
+          
+          <form id="videoFormMain" class="mt-3" enctype="multipart/form-data">
+            <input type="file" name="video" accept="video/*" required class="form-control mb-3">
+            <button class="btn btn-primary"><i class="bi bi-search"></i> Upload & Process</button>
+          </form>
+
+          <div id="videoResult" class="mt-4"></div>
+        </div>
+
+        <div class="text-end mt-3">
+         <button class="btn btn-outline-primary" onclick="downloadReport('video')"><i class="bi bi-file-earmark-text"></i> Download Report</button>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-graph-up"></i> People Count Over Time (Video)</h6>
+          <div class="chart-container"><canvas id="lineChartVid"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-activity"></i> Crowd Density Visualization (Video)</h6>
+          <div class="chart-container"><canvas id="heatChartVid"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <h6><i class="bi bi-columns-gap"></i> Zone Occupancy Distribution (Video)</h6>
+          <div class="chart-container" style="height:250px;"><canvas id="barChartVid"></canvas></div>
+        </div>
+
+        <div class="mt-4">
+          <div class="card p-3" style="background:#f8f9fa;">
+            <h6><strong><i class="bi bi-bell-fill"></i> Alert System Status</strong></h6>
+            <p class="mb-0">Threshold: <strong id="thresholdLabelVid">50 people</strong></p>
+            <p class="mb-0">Current Status: <span id="alertStatusVid" style="font-weight:600; color:#28a745;"><i class="bi bi-check-circle-fill"></i> Normal</span></p>
+          </div>
+        </div>
+      </section>
+
+    
+      <section id="profile" class="tab" style="display:none;">
+        <div class="card p-4">
+          <h5><i class="bi bi-person-circle"></i> User Profile</h5>
+          <hr>
+          <p><strong>Name:</strong> {{ user.name if user else 'N/A' }}</p>
+          <p><strong>Email:</strong> {{ user.email if user else 'N/A' }}</p>
+          <p><strong>Role:</strong> {{ user.role if user else 'N/A' }}</p>
+          <hr>
+          <a href="/logout" class="btn btn-danger">Logout</a>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <script>
+    
+    const GET_COUNTS = '/get_counts';
+    const START_DET = '/start_detection';
+    const STOP_DET = '/stop_detection';
+    const CAPTURE = '/capture';
+    const UPLOAD_IMAGE = '/api/upload_image';
+    const UPLOAD_VIDEO = '/api/upload_video';
+
+    const THRESHOLD = 50; 
+
+    
+    const setThresholdLabels = () => {
+      const lbls = ['thresholdLabel','thresholdLabelImg','thresholdLabelVid'];
+      lbls.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = THRESHOLD + ' people';
+      });
+    };
+    setThresholdLabels();
+
+    
+    function switchTab(id, el) {
+      document.querySelectorAll('.tab').forEach(t => t.style.display = 'none');
+      const target = document.getElementById(id);
+      if (target) target.style.display = 'block';
+      document.querySelectorAll('.sidebar .nav-link').forEach(n => n.classList.remove('active'));
+      if (el) el.classList.add('active');
+    }
+
+    
+    function createLineChart(ctx, label) {
+      return new Chart(ctx, {
+        type: 'line',
+        data: { labels: [], datasets: [{ label, data: [], tension:0.3, fill:true, pointRadius:3 }]},
+        options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true }}}
+      });
+    }
+    function createScatterChart(ctx) {
+      return new Chart(ctx, {
+        type: 'scatter',
+        data: { datasets: [{ label:'Density', data: [] }]},
+        options: { responsive:true, maintainAspectRatio:false, scales:{ x:{ min:0, max:100 }, y:{ min:0, max:100 } } }
+      });
+    }
+    function createBarChart(ctx, labels) {
+      return new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets: [{ label:'People', data: [0,0,0] }]},
+        options: { responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true }}}
+      });
+    }
+
+    
+    const safeCtx = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.getContext('2d') : null;
+    };
+
+    
+    const lineLive = safeCtx('lineChartLive') ? createLineChart(safeCtx('lineChartLive'),'People Count') : null;
+    const heatLive = safeCtx('heatChartLive') ? createScatterChart(safeCtx('heatChartLive')) : null;
+    const barLive = safeCtx('barChartLive') ? createBarChart(safeCtx('barChartLive'), ['Entrance','Retail Area','Food Court']) : null;
+
+    const lineImg = safeCtx('lineChartImg') ? createLineChart(safeCtx('lineChartImg'),'People Count (Image)') : null;
+    const heatImg = safeCtx('heatChartImg') ? createScatterChart(safeCtx('heatChartImg')) : null;
+    const barImg = safeCtx('barChartImg') ? createBarChart(safeCtx('barChartImg'), ['Entrance','Retail Area','Food Court']) : null;
+
+    const lineVid = safeCtx('lineChartVid') ? createLineChart(safeCtx('lineChartVid'),'People Count (Video)') : null;
+    const heatVid = safeCtx('heatChartVid') ? createScatterChart(safeCtx('heatChartVid')) : null;
+    const barVid = safeCtx('barChartVid') ? createBarChart(safeCtx('barChartVid'), ['Entrance','Retail Area','Food Court']) : null;
+
+  
+    let timesLive = [], countsLive = [];
+    let timesImg = [], countsImg = [];
+    let timesVid = [], countsVid = [];
+
+    
+    async function pollCounts(){
+      try {
+        const res = await fetch(GET_COUNTS);
+        if (!res.ok) throw new Error('Network response not ok');
+        const j = await res.json();
+        const people = j.count || 0;
+        const details = j.details || {};
+
+      
+        const homeCountEl = document.getElementById('homeCount');
+        if (homeCountEl) homeCountEl.textContent = people;
+
+        
+        const liveCountsEl = document.getElementById('liveCounts');
+        if (liveCountsEl) {
+          if (!details || Object.keys(details).length === 0) {
+            liveCountsEl.innerHTML = '<li>No objects detected</li>';
+          } else {
+            liveCountsEl.innerHTML = Object.entries(details).map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('');
+          }
+        }
+
+        
+        const livePeopleEl = document.getElementById('livePeople');
+        if (livePeopleEl) livePeopleEl.textContent = people;
+
+        
+        const now = new Date().toLocaleTimeString();
+        timesLive.push(now); countsLive.push(people);
+        if (timesLive.length > 20) { timesLive.shift(); countsLive.shift(); }
+        if (lineLive) {
+          lineLive.data.labels = timesLive;
+          lineLive.data.datasets[0].data = countsLive;
+          lineLive.update('none');
+        }
+
+      
+        if (heatLive) {
+          const pts = Array.from({length: Math.min(100, Math.max(1, people))}, ()=> ({ x: Math.random()*100, y: Math.random()*100 }));
+          heatLive.data.datasets[0].data = pts;
+          heatLive.update('none');
+        }
+
+        
+        if (barLive) {
+          const z1 = Math.floor(people * 0.4), z2 = Math.floor(people * 0.35), z3 = Math.max(0, people - z1 - z2);
+          barLive.data.datasets[0].data = [z1, z2, z3];
+          barLive.update('none');
+        }
+
+        
+        const banner = document.getElementById('alertBanner');
+        const alertStatus = document.getElementById('alertStatusLive');
+        const alertCount = document.getElementById('alertCount');
+        if (people > THRESHOLD) {
+          if (banner) banner.style.display = 'block';
+          if (alertCount) alertCount.textContent = people;
+          if (alertStatus) {
+            alertStatus.innerHTML = '<i class="bi bi-exclamation-octagon-fill" style="color:#dc3545"></i> <strong>ALERT - Threshold Exceeded!</strong>';
+            alertStatus.style.color = '#dc3545';
+          }
+          const statusIndicator = document.getElementById('statusIndicator');
+          if (statusIndicator) statusIndicator.innerHTML = '<i class="bi bi-circle-fill" style="color:#dc3545"></i>';
+        } else {
+          if (banner) banner.style.display = 'none';
+          if (alertStatus) {
+            alertStatus.innerHTML = '<i class="bi bi-check-circle-fill" style="color:#28a745"></i> Normal';
+            alertStatus.style.color = '#28a745';
+          }
+          const statusIndicator = document.getElementById('statusIndicator');
+          if (statusIndicator) statusIndicator.innerHTML = '<i class="bi bi-circle-fill" style="color:#28a745"></i>';
+        }
+      } catch (e) {
+        
+      }
+    }
+
+  
+    pollCounts();
+    const POLL_INTERVAL = 2000;
+    setInterval(pollCounts, POLL_INTERVAL);
+
+    
+    const startBtn = document.getElementById('startBtn');
+    if (startBtn) startBtn.addEventListener('click', async () => {
+      try {
+        await fetch(START_DET, { method:'POST' });
+        const statusIndicator = document.getElementById('statusIndicator');
+        if (statusIndicator) statusIndicator.innerHTML = '<i class="bi bi-circle-fill" style="color:#28a745"></i>';
+      } catch(e){}
+    });
+
+    const stopBtn = document.getElementById('stopBtn');
+    if (stopBtn) stopBtn.addEventListener('click', async () => {
+      try {
+        await fetch(STOP_DET, { method:'POST' });
+        const statusIndicator = document.getElementById('statusIndicator');
+        if (statusIndicator) statusIndicator.innerHTML = '<i class="bi bi-circle-fill" style="color:#dc3545"></i>';
+      } catch(e){}
+    });
+
+    const captureBtn = document.getElementById('captureBtn');
+    if (captureBtn) captureBtn.addEventListener('click', async () => {
+      try {
+        const res = await fetch(CAPTURE, { method:'POST' });
+        if (!res) throw new Error('capture failed');
+        const data = await res.json();
+        if (data.status === 'success') {
+          const html = `<div class="card p-3"><h6><i class="bi bi-camera"></i> Captured Image</h6>
+                        <img src="${data.image_url}?t=${Date.now()}" style="max-width:100%;border:1px solid #ddd;border-radius:8px;" />
+                        <h6 class="mt-3">Detected Objects:</h6>
+                        <ul class="counts-list">${Object.entries(data.counts||{}).map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('')}</ul></div>`;
+          const imageResult = document.getElementById('imageResult');
+          if (imageResult) imageResult.innerHTML = html;
+        } else {
+          alert(data.message || 'Capture failed');
+        }
+      } catch (e) {
+        alert('Capture request failed');
+      }
+    });
+
+    
+    const imageForm = document.getElementById('imageForm');
+    if (imageForm) imageForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const out = document.getElementById('imageResult');
+      if (out) out.innerHTML = '<div class="text-center"><div class="spinner-border text-primary"></div><p>Processing...</p></div>';
+
+      const fd = new FormData(form);
+      try {
+        const res = await fetch(UPLOAD_IMAGE, { method:'POST', body: fd });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        if (data.status === 'success') {
+          const counts = data.counts || {};
+          const people = counts.person || 0;
+          const html = `<div class="card p-3"><h6><i class="bi bi-check-circle-fill"></i> Detection Complete</h6>
+                     <img src="${data.image_url}?t=${Date.now()}" style="max-width:100%;border:1px solid #ddd;border-radius:8px;" />
+                     <h6 class="mt-3">Detected Objects:</h6>
+                     <ul class="counts-list">${Object.entries(counts).map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('')}</ul></div>`;
+          if (out) out.innerHTML = html;
+
+        
+          const now = new Date().toLocaleTimeString();
+          timesImg.push(now); countsImg.push(people);
+          if (timesImg.length > 20) { timesImg.shift(); countsImg.shift(); }
+          if (lineImg) { lineImg.data.labels = timesImg; lineImg.data.datasets[0].data = countsImg; lineImg.update('none'); }
+
+          if (heatImg) { const pts = Array.from({length: Math.min(100, Math.max(1, people))}, ()=> ({ x: Math.random()*100, y: Math.random()*100 })); heatImg.data.datasets[0].data = pts; heatImg.update('none'); }
+          if (barImg) { const z1 = Math.floor(people*0.4), z2 = Math.floor(people*0.35), z3 = Math.max(0, people - z1 - z2); barImg.data.datasets[0].data = [z1, z2, z3]; barImg.update('none'); }
+
+          const alertStatus = document.getElementById('alertStatusImg');
+          if (alertStatus) {
+            if (people > THRESHOLD) {
+              alertStatus.innerHTML = '<i class="bi bi-exclamation-octagon-fill" style="color:#dc3545"></i> <strong>ALERT</strong>';
+              alertStatus.style.color = '#dc3545';
+            } else {
+              alertStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> Normal';
+              alertStatus.style.color = '#28a745';
+            }
+          }
+        } else {
+          if (out) out.innerHTML = `<p class="text-danger">${data.message || 'Processing failed'}</p>`;
+        }
+      } catch (err) {
+        if (out) out.innerHTML = '<p class="text-danger">Upload failed</p>';
+      }
+    });
+
+    
+    const videoFormMain = document.getElementById('videoFormMain');
+    if (videoFormMain) videoFormMain.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const out = document.getElementById('videoResult');
+      if (out) out.innerHTML = '<div class="alert alert-info">Processing video... This may take several minutes depending on video length.</div>';
+
+      const fd = new FormData(videoFormMain);
+      try {
+        const res = await fetch(UPLOAD_VIDEO, { method:'POST', body: fd });
+        if (!res.ok) throw new Error('Upload failed');
+        const data = await res.json();
+        if (data.status === 'success') {
+          const counts = data.counts || {};
+          const people = counts.person || 0;
+          const html = `<div class="card p-3"><h6><i class="bi bi-check-circle-fill"></i> Video Processing Complete</h6>
+                        <video controls width="100%" class="media-box"><source src="${data.video_url}?t=${Date.now()}" /></video>
+                        <h6 class="mt-3">Total Detected Objects:</h6>
+                        <ul class="counts-list">${Object.entries(counts).map(([k,v])=>`<li><strong>${k}:</strong> ${v}</li>`).join('')}</ul></div>`;
+          if (out) out.innerHTML = html;
+
+          
+          const now = new Date().toLocaleTimeString();
+          timesVid.push(now); countsVid.push(people);
+          if (timesVid.length > 20) { timesVid.shift(); countsVid.shift(); }
+          if (lineVid) { lineVid.data.labels = timesVid; lineVid.data.datasets[0].data = countsVid; lineVid.update('none'); }
+          if (heatVid) { const pts = Array.from({length: Math.min(100, Math.max(1, people))}, ()=> ({ x: Math.random()*100, y: Math.random()*100 })); heatVid.data.datasets[0].data = pts; heatVid.update('none'); }
+          if (barVid) { const z1 = Math.floor(people*0.4), z2 = Math.floor(people*0.35), z3 = Math.max(0, people - z1 - z2); barVid.data.datasets[0].data = [z1, z2, z3]; barVid.update('none'); }
+
+          const alertStatus = document.getElementById('alertStatusVid');
+          if (alertStatus) {
+            if (people > THRESHOLD) {
+              alertStatus.innerHTML = '<i class="bi bi-exclamation-octagon-fill" style="color:#dc3545"></i> <strong>ALERT</strong>';
+              alertStatus.style.color = '#dc3545';
+            } else {
+              alertStatus.innerHTML = '<i class="bi bi-check-circle-fill"></i> Normal';
+              alertStatus.style.color = '#28a745';
+            }
+          }
+        } else {
+          if (out) out.innerHTML = `<p class="text-danger">${data.message || 'Processing failed'}</p>`;
+        }
+      } catch (err) {
+        if (out) out.innerHTML = '<p class="text-danger">Upload failed</p>';
+      }
+    });
+
+  
+    document.querySelectorAll('.sidebar .nav-link').forEach(n => n.addEventListener('click', () => {
+      const liveImg = document.getElementById('liveFeed');
+      if (liveImg && liveImg.src) {
+      
+        liveImg.src = '{{ url_for("video_feed") }}?t=' + Date.now();
+      }
+    }));
+
+    
+    async function downloadReport(mode) {
+      try {
+        const response = await fetch(`/download_report?mode=${mode}`);
+        if (!response.ok) {
+          
+          alert("Failed to generate report!");
+          return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${mode}_crowd_report.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        alert("Report downloaded successfully!");
+      } catch (err) {
+        console.error("Download error:", err);
+        alert("Error while downloading report!");
+      }
+    }
+
+  </script>
+</body>
+</html>
